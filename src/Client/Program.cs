@@ -16,29 +16,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using System.Device.Gpio;
 
 namespace Client
 {
     public class Program
     {
-        private int pin = 10;
+        private static int buttonPin = 10;
         private ClientWebSocket client = new ClientWebSocket();
-
-        private void SendClientRequestOn(int cum, PinValueChangedEventArgs e) {
-            // toggle the state of the LED every time the button is pressed
-            if (e.ChangeType == PinEventTypes.Rising)
-            {
-                return;
-            }
-        }
-
-        private void SendClientRequestOff(int cum, PinValueChangedEventArgs e) {
-            // toggle the state of the LED every time the button is pressed
-            if (e.ChangeType == PinEventTypes.Falling)
-            {
-                return;
-            }
-        }
 
         private static void RunPython(string pathToPythonFile) {
             ProcessStartInfo start = new ProcessStartInfo();
@@ -66,56 +51,32 @@ namespace Client
             } 
         }
 
-        // https://docs.microsoft.com/en-us/samples/microsoft/windows-iotcore-samples/push-button/
-        // ^ Good reference for button
+        // We are using System.Device.Gpio
         public static void Main(string[] args)
         {
-            //server implementation
-            TcpListener server = new TcpListener(IPAddress.Parse(""), 80);
-            server.Start();
-            Console.WriteLine("Server has started on :80. Waiting for a connection…\n");
-            //triggers when a client connects
-            TcpClient client = server.AcceptTcpClient();
-            Console.WriteLine("A client connected.");
-            NetworkStream stream = client.GetStream();
-            
+            ButtonState bs = new ButtonState();
+            CancellationTokenSource source = new CancellationTokenSource();
+            CancellationToken token = source.Token;
             bool on = false;
+
             using (var controller = new GpioController()) {
+                controller.OpenPin(buttonPin, PinMode.Input);
                 //enter to an infinite cycle to be able to handle every change in stream
                 while(true) {
-                    GpioDriver driver = new GpioDriver();
-                    
-                        controller.OpenPin(pin, PinMode.Output);
+                    // Set a debounce timeout to filter out switch bounce noise from a button press
+                    var Debounce = TimeSpan.FromMilliseconds(50);
 
-                        // Check if input pull-up resistors are supported
-                        if (driver.IsPinModeSupported(pin, GpioPinDriveMode.InputPullUp))
-                            driver.SetPinMode(pin, GpioPinDriveMode.InputPullUp);
-                        else
-                            driver.SetPinMode(pin, GpioPinDriveMode.Input);
-                        // Set a debounce timeout to filter out switch bounce noise from a button press
-                        var Debounce = TimeSpan.FromMilliseconds(50);
-
-                        // Register for the ValueChanged event so our buttonPin_ValueChanged 
-                        // function is called when the button is pressed
-                        ValueChanged += SendClientRequestOn;
-                        
-                
-                    //traps here until some bytes of data have been sent
-                    while(!stream.DataAvailable);
-                    //TCPHandshake(client, ref stream);
-                    Console.WriteLine(ReadTransmission(client, stream));
-                    if(on) {
-                        // absolute path of file
-                        //RunPython("/Users/henryfaulkner/Desktop/Projects/F-in-the-Chat/server/python/off.py");
-                        //Console.WriteLine("Turn Off.");
+                    if (on) {
+                        controller.WaitForEvent(buttonPin, PinEventTypes.Rising, token);
+                        RunPython("/Users/henryfaulkner/Desktop/Projects/F-in-the-Chat/src/python/off.py");
                         on = false;
                     } else {
-                        // absolute path of file
-                        //RunPython("/Users/henryfaulkner/Desktop/Projects/F-in-the-Chat/server/python/rainbow.py");
-                        //Console.WriteLine("Turn on.");
+                        controller.WaitForEvent(buttonPin, PinEventTypes.Falling, token);
+                        RunPython("/Users/henryfaulkner/Desktop/Projects/F-in-the-Chat/src/python/rainbow.py");
                         on = true;
-                    }
+                    }   
                 }
+                controller.ClosePin(buttonPin);
             }
         }
     }
