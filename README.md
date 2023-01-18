@@ -1,4 +1,3 @@
 # F-in-the-Chat
-
-IoT device which lights my custom 3D printed F via websocket transmission.  
-Written in .NET for GPIO and WebSocket server, C++ for WebSocket client, and Python for NeoPixel scripting.
+3D printed wallart with programmable lights.
+Written in .NET for GPIO and Python for NeoPixel scripting.
