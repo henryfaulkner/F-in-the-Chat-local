@@ -23,7 +23,7 @@ void loop()
       on = true;
       Serial.println("down");
       Serial.println("on");
-      Magenta();
+      Rainbow();
       delay(50); //debounce
     } else {
       on = false;
@@ -47,11 +47,37 @@ void loop()
 }
 
 void Rainbow() {
-
+  Serial.println("method::Rainbow");
+  for(int i=0;i<LED_COUNT;i++) {
+    int pixel_index = (floor((i * 256) / LED_COUNT));
+    strip.setPixelColor(i, Wheel(pixel_index & 255));
+    strip.show();
+    delay(10); 
+  }
 }
 
-void Rainbow_Spin() {
-  
+uint32_t Wheel(int pos) {
+  int r;
+  int g;
+  int b;
+  if(pos < 0 || pos > 255) {
+    r = 0; g = 0; b = 0;
+  } else if(pos < 85) {
+    r = floor(pos * 3);
+    g = floor(255 - pos * 3);
+    b = 0;
+  } else if(pos < 170) {
+    pos = pos - 85;
+    r = floor(255 - pos * 3);
+    g = 0;
+    b = floor(pos * 3);
+  } else {
+    pos = pos - 170;
+    r = 0;
+    g = floor(pos * 3);
+    b = floor(255 - pos * 3); 
+  }
+  return strip.Color(g, r, b);
 }
 
 void Off() {
